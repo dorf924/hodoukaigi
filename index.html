@@ -316,6 +316,12 @@ tr:hover td { background: var(--blue-light); }
     <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
       AIまとめ・音声文字起こし、どちらでも対応。出席者名は自動除外されます。
     </div>
+    <div style="margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <label style="font-size:13px;font-weight:700;white-space:nowrap">会議日</label>
+      <input type="text" id="meetingDateInput" placeholder="例：令和8年6月2日"
+        style="width:200px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 12px;font-family:inherit;font-size:13px;background:#fafbfd;color:var(--text);outline:none">
+      <span style="font-size:11px;color:var(--muted)">※AIが読み取れない場合はここに入力してください</span>
+    </div>
     <textarea id="inputTxt" placeholder="ここに文字起こしデータを貼り付けてください..."></textarea>
     <div class="alert alert-err" id="errBar"></div>
     <div class="btn-row">
@@ -329,8 +335,8 @@ tr:hover td { background: var(--blue-light); }
   </div>
 
   <!-- 結果 -->
-  <div id="resultSec" style="display:none">
-    <div class="alert alert-ok show" id="okBar"></div>
+  <div id="resultSec">
+    <div class="alert alert-ok" id="okBar"></div>
 
     <div class="card">
       <div class="tab-row">
@@ -483,6 +489,8 @@ ${txt}`;
       else throw new Error('JSON解析失敗');
     }
 
+    const manualDate = document.getElementById('meetingDateInput').value.trim();
+    if(manualDate) parsed.meeting_date = manualDate;
     currentMeeting = parsed;
     renderPreview(parsed);
 
@@ -522,6 +530,7 @@ function renderPreview(d){
   }).join('');
 
   document.getElementById('okBar').textContent = `✅ ${d.cases.length}件の案件を抽出しました（${d.meeting_date}）`;
+  document.getElementById('okBar').classList.add('show');
   document.getElementById('resultSec').style.display = 'block';
   swTab('preview');
   document.getElementById('resultSec').scrollIntoView({ behavior:'smooth', block:'start' });
