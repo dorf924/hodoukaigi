@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>補導委員会 議事録ツール</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --navy: #1c2d4f;
+  --blue: #2356a8;
+  --blue-light: #ddeaf8;
+  --blue-mid: #4a7fcb;
+  --bg: #f0f3f9;
+  --white: #ffffff;
+  --border: #cdd8ea;
+  --text: #1c2d4f;
+  --muted: #6278a0;
+  --faint: #8a9dc0;
+  --green: #177a4a;
+  --green-bg: #e4f5ed;
+  --green-border: #9fd4b8;
+  --red: #b92b2b;
+  --red-bg: #fdeaea;
+  --red-border: #f0aaaa;
+  --amber: #8a5700;
+  --amber-bg: #fef5e4;
+  --amber-border: #f0cc80;
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "游ゴシック", "Yu Gothic Medium", "Yu Gothic", "Meiryo", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ヘッダー */
+.header {
+  background: var(--navy);
+  padding: 0 28px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 12px rgba(28,45,79,0.18);
+}
+.header-left { display: flex; align-items: center; gap: 12px; }
+.header-icon {
+  width: 32px; height: 32px;
+  background: var(--blue-mid);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+.header-title { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: .05em; }
+.header-sub { font-size: 11px; color: #8aa0c8; margin-top: 1px; }
+
+/* APIキー設定 */
+.api-bar {
+  background: var(--navy);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 8px 28px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: #8aa0c8;
+}
+.api-bar input {
+  flex: 1; max-width: 380px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  color: #fff;
+  font-size: 12px;
+  font-family: monospace;
+  outline: none;
+}
+.api-bar input:focus { border-color: var(--blue-mid); }
+.api-bar input::placeholder { color: #5a7099; }
+.api-badge {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.api-badge.ok { background: var(--green-bg); color: var(--green); }
+.api-badge.ng { background: var(--red-bg); color: var(--red); }
+
+/* メイン */
+.main { max-width: 960px; margin: 0 auto; padding: 24px 20px 48px; }
+
+/* カード */
+.card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(28,45,79,0.06);
+}
+.card-title {
+  font-size: 13px; font-weight: 700;
+  color: var(--blue);
+  border-left: 3px solid var(--blue);
+  padding-left: 10px;
+  margin-bottom: 14px;
+  letter-spacing: .04em;
+}
+
+/* テキストエリア */
+textarea {
+  width: 100%;
+  min-height: 180px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.7;
+  resize: vertical;
+  background: #fafbfd;
+  color: var(--text);
+  outline: none;
+  transition: border-color .18s;
+}
+textarea:focus { border-color: var(--blue); background: #fff; }
+
+/* ボタン */
+button {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: all .14s;
+  font-family: inherit;
+  letter-spacing: .03em;
+}
+button:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: var(--blue); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: #1a4490; }
+.btn-success { background: var(--green); color: #fff; }
+.btn-success:hover { background: #115e38; }
+.btn-ghost {
+  background: transparent; color: var(--blue);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { background: var(--blue-light); border-color: var(--blue); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-danger:hover { background: #8f1f1f; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+/* ローディング */
+.loading {
+  display: none; align-items: center; gap: 10px;
+  padding: 11px 14px;
+  background: var(--blue-light);
+  border-radius: var(--radius-sm);
+  color: var(--blue);
+  font-size: 13px;
+  margin-top: 12px;
+}
+.loading.show { display: flex; }
+.spinner {
+  width: 18px; height: 18px; flex-shrink: 0;
+  border: 2.5px solid #c0d4ee;
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin .75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* アラート */
+.alert {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  display: none;
+}
+.alert.show { display: block; margin-top: 10px; }
+.alert-ok { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.alert-err { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+
+/* 会議ヘッダー */
+.meet-meta {
+  display: flex; gap: 24px; flex-wrap: wrap;
+  font-size: 12px; color: var(--muted);
+  margin-bottom: 14px;
+}
+.meet-meta strong { color: var(--text); font-size: 14px; }
+
+/* 案件カード */
+.case-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  background: #fafbfd;
+}
+.case-head {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 10px;
+  margin-bottom: 10px;
+}
+.case-name { font-size: 15px; font-weight: 700; }
+.case-grade { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.badge {
+  font-size: 11px; font-weight: 700;
+  padding: 3px 10px; border-radius: 20px;
+  flex-shrink: 0; white-space: nowrap;
+}
+.badge-r { background: var(--red-bg); color: var(--red); }
+.badge-a { background: var(--amber-bg); color: var(--amber); }
+.badge-b { background: var(--blue-light); color: var(--blue); }
+
+.case-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px; font-size: 12px;
+}
+.cf { background: var(--white); border: 1px solid var(--border); border-radius: 5px; padding: 7px 10px; }
+.cf.full { grid-column: 1/-1; }
+.cf-label { font-size: 10px; font-weight: 700; color: var(--faint); margin-bottom: 3px; letter-spacing: .06em; }
+.cf-value { color: var(--text); line-height: 1.5; }
+
+/* タブ */
+.tab-row {
+  display: flex; gap: 2px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 18px;
+}
+.tab {
+  padding: 8px 18px;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; border: none;
+  background: transparent; color: var(--muted);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  font-family: inherit;
+  transition: all .12s;
+}
+.tab:hover { color: var(--blue); background: var(--blue-light); }
+.tab.act {
+  color: var(--blue);
+  border-bottom: 2px solid var(--blue);
+  margin-bottom: -2px;
+  background: var(--white);
+}
+.tab-panel { display: none; }
+.tab-panel.act { display: block; }
+
+/* テーブル */
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th {
+  background: var(--navy); color: #fff;
+  padding: 8px 12px; text-align: left;
+  font-size: 11px; white-space: nowrap;
+}
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top; line-height: 1.5;
+}
+tr:nth-child(even) td { background: #f5f8fd; }
+tr:hover td { background: var(--blue-light); }
+.empty { text-align: center; padding: 32px; color: var(--faint); font-size: 13px; }
+
+/* レスポンシブ */
+@media(max-width:600px) {
+  .header { padding: 0 14px; }
+  .api-bar { padding: 8px 14px; }
+  .main { padding: 16px 12px 40px; }
+  .card { padding: 16px; }
+  .case-grid { grid-template-columns: 1fr; }
+  .cf.full { grid-column: 1; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="header-icon">📋</div>
+    <div>
+      <div class="header-title">補導委員会 議事録ツール</div>
+      <div class="header-sub">文字起こし → 自動整形 → 台帳管理</div>
+    </div>
+  </div>
+</div>
+
+<div class="api-bar">
+  <span>Anthropic APIキー</span>
+  <input type="password" id="apiKey" placeholder="sk-ant-..." oninput="saveKey()">
+  <span class="api-badge" id="keyBadge">未設定</span>
+  <span style="margin-left:auto;font-size:11px;color:#4a6080">キーはブラウザにのみ保存。外部送信なし。</span>
+</div>
+
+<div class="main">
+
+  <!-- 入力 -->
+  <div class="card">
+    <div class="card-title">文字起こしデータを貼り付け</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+      AIまとめ・音声文字起こし、どちらでも対応。出席者名は自動除外されます。
+    </div>
+    <textarea id="inputTxt" placeholder="ここに文字起こしデータを貼り付けてください..."></textarea>
+    <div class="alert alert-err" id="errBar"></div>
+    <div class="btn-row">
+      <button class="btn-primary" id="analyzeBtn" onclick="analyze()">⚡ AI解析して整形する</button>
+      <button class="btn-ghost" onclick="document.getElementById('inputTxt').value=''">クリア</button>
+    </div>
+    <div class="loading" id="loadingBar">
+      <div class="spinner"></div>
+      <span id="loadingMsg">案件を識別中...</span>
+    </div>
+  </div>
+
+  <!-- 結果 -->
+  <div id="resultSec" style="display:none">
+    <div class="alert alert-ok show" id="okBar"></div>
+
+    <div class="card">
+      <div class="tab-row">
+        <button class="tab act" onclick="swTab('preview')">📄 今回の抽出結果</button>
+        <button class="tab" onclick="swTab('ledger')">📊 台帳（全件）</button>
+      </div>
+
+      <!-- プレビュー -->
+      <div class="tab-panel act" id="panel-preview">
+        <div class="meet-meta" id="meetMeta"></div>
+        <div id="caseList"></div>
+        <div class="btn-row">
+          <button class="btn-success" onclick="addToLedger()">✅ 台帳に追加する</button>
+          <button class="btn-ghost" onclick="reAnalyze()">🔄 再解析</button>
+        </div>
+      </div>
+
+      <!-- 台帳 -->
+      <div class="tab-panel" id="panel-ledger">
+        <div class="btn-row" style="margin-bottom:14px">
+          <button class="btn-success" onclick="exportExcel()">📥 Excelダウンロード</button>
+          <button class="btn-danger" onclick="clearLedger()">🗑 台帳クリア</button>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px" id="ledgerCnt"></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>会議日</th><th>学年・組</th><th>生徒名</th>
+                <th>補導内容</th><th>処分内容</th>
+                <th>経緯・補足</th><th>質問</th><th>意見</th>
+              </tr>
+            </thead>
+            <tbody id="ledgerBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const MSGS = ['案件を識別中...','生徒名・処分内容を抽出中...','データを整形中...'];
+let mi = 0, ticker = null;
+let currentMeeting = null;
+let ledger = JSON.parse(localStorage.getItem('hm_ledger') || '[]');
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* APIキー管理 */
+function saveKey(){
+  const k = document.getElementById('apiKey').value.trim();
+  if(k){ localStorage.setItem('hm_apikey', k); updateBadge(true); }
+  else { localStorage.removeItem('hm_apikey'); updateBadge(false); }
+}
+function updateBadge(ok){
+  const b = document.getElementById('keyBadge');
+  b.textContent = ok ? '設定済' : '未設定';
+  b.className = 'api-badge ' + (ok ? 'ok' : 'ng');
+}
+(function initKey(){
+  const k = localStorage.getItem('hm_apikey');
+  if(k){ document.getElementById('apiKey').value = k; updateBadge(true); }
+  else { updateBadge(false); }
+})();
+
+/* 解析 */
+async function analyze(){
+  const apiKey = localStorage.getItem('hm_apikey');
+  if(!apiKey){ showErr('APIキーを設定してください。'); return; }
+  const txt = document.getElementById('inputTxt').value.trim();
+  if(!txt){ showErr('テキストを入力してください。'); return; }
+  hideErr();
+
+  document.getElementById('analyzeBtn').disabled = true;
+  const lb = document.getElementById('loadingBar');
+  lb.classList.add('show');
+  mi = 0;
+  document.getElementById('loadingMsg').textContent = MSGS[0];
+  ticker = setInterval(()=>{ mi=(mi+1)%MSGS.length; document.getElementById('loadingMsg').textContent=MSGS[mi]; }, 1300);
+
+  const prompt = `以下は学校の補導委員会の会議の文字起こしデータです。
+各案件を抽出し、必ずJSON形式のみで返してください。前置きや説明文は一切不要です。
+
+抽出ルール：
+- 生徒名は必ずカタカナ表記（漢字があってもカタカナに変換）
+- 学年は「高Ⅰ」「高Ⅱ」「中１」「中２」などに統一
+- 「定額処分」は「停学」の誤認識→「停学○日」と正しく記載
+- 処分内容は「停学○日」「特別指導○日」「転席」「学校長譴責」など正確に日数まで記載
+- 出席者の名前は結果に含めない
+- 会議日は文中から読み取る。なければ「不明」
+- summaryは担任・顧問コメントや経緯を事実ベースで簡潔に
+
+{
+  "meeting_date": "令和X年X月X日",
+  "cases": [
+    {
+      "grade": "学年・組",
+      "name": "カタカナ氏名",
+      "violation": "補導内容",
+      "punishment": "処分内容（例：停学7日、特別指導3日、転席、学校長譴責）",
+      "summary": "経緯・補足",
+      "questions": "質問内容（なければ「なし」）",
+      "opinions": "意見（なければ「なし」）"
+    }
+  ]
+}
+
+文字起こしデータ：
+${txt}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-allow-browser': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    clearInterval(ticker);
+    lb.classList.remove('show');
+    document.getElementById('analyzeBtn').disabled = false;
+
+    if(!res.ok){
+      const e = await res.json();
+      showErr('APIエラー: ' + (e.error?.message || res.status));
+      return;
+    }
+
+    const data = await res.json();
+    const raw = data.content.map(c => c.text||'').join('').replace(/```json|```/g,'').trim();
+
+    let parsed;
+    try { parsed = JSON.parse(raw); }
+    catch {
+      const m = raw.match(/\{[\s\S]*\}/);
+      if(m) parsed = JSON.parse(m[0]);
+      else throw new Error('JSON解析失敗');
+    }
+
+    currentMeeting = parsed;
+    renderPreview(parsed);
+
+  } catch(e) {
+    clearInterval(ticker);
+    document.getElementById('loadingBar').classList.remove('show');
+    document.getElementById('analyzeBtn').disabled = false;
+    showErr('エラー: ' + e.message);
+  }
+}
+
+function renderPreview(d){
+  document.getElementById('meetMeta').innerHTML =
+    `<span>会議日&nbsp;&nbsp;<strong>${esc(d.meeting_date)}</strong></span>` +
+    `<span>案件数&nbsp;&nbsp;<strong>${d.cases.length}件</strong></span>`;
+
+  document.getElementById('caseList').innerHTML = d.cases.map((c,i) => {
+    const bc = c.punishment?.includes('停学') ? 'badge-r'
+             : c.punishment?.includes('特別指導') ? 'badge-a' : 'badge-b';
+    return `<div class="case-card">
+      <div class="case-head">
+        <div>
+          <div class="case-name">${esc(c.name)}</div>
+          <div class="case-grade">${esc(c.grade)}</div>
+        </div>
+        <span class="badge ${bc}">${esc(c.punishment)}</span>
+      </div>
+      <div class="case-grid">
+        <div class="cf"><div class="cf-label">補導内容</div><div class="cf-value">${esc(c.violation)}</div></div>
+        <div class="cf"><div class="cf-label">処分</div><div class="cf-value"><strong>${esc(c.punishment)}</strong></div></div>
+        <div class="cf full"><div class="cf-label">経緯・補足</div><div class="cf-value">${esc(c.summary)}</div></div>
+        <div class="cf"><div class="cf-label">質問</div><div class="cf-value">${esc(c.questions)}</div></div>
+        <div class="cf"><div class="cf-label">意見</div><div class="cf-value">${esc(c.opinions)}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('okBar').textContent = `✅ ${d.cases.length}件の案件を抽出しました（${d.meeting_date}）`;
+  document.getElementById('resultSec').style.display = 'block';
+  swTab('preview');
+  document.getElementById('resultSec').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function addToLedger(){
+  if(!currentMeeting) return;
+  currentMeeting.cases.forEach(c => {
+    ledger.push({
+      date: currentMeeting.meeting_date,
+      grade: c.grade, name: c.name,
+      violation: c.violation, punishment: c.punishment,
+      summary: c.summary, questions: c.questions, opinions: c.opinions
+    });
+  });
+  localStorage.setItem('hm_ledger', JSON.stringify(ledger));
+  renderLedger();
+  swTab('ledger');
+  document.getElementById('okBar').textContent = `✅ 台帳に追加しました。累計 ${ledger.length}件`;
+}
+
+function renderLedger(){
+  document.getElementById('ledgerCnt').textContent = `累計 ${ledger.length}件`;
+  const tb = document.getElementById('ledgerBody');
+  if(!ledger.length){
+    tb.innerHTML = '<tr><td colspan="8" class="empty">台帳にデータがありません</td></tr>';
+    return;
+  }
+  tb.innerHTML = ledger.map(r => `<tr>
+    <td style="white-space:nowrap">${esc(r.date)}</td>
+    <td style="white-space:nowrap">${esc(r.grade)}</td>
+    <td style="white-space:nowrap;font-weight:700">${esc(r.name)}</td>
+    <td>${esc(r.violation)}</td>
+    <td style="white-space:nowrap;font-weight:700">${esc(r.punishment)}</td>
+    <td>${esc(r.summary)}</td>
+    <td>${esc(r.questions)}</td>
+    <td>${esc(r.opinions)}</td>
+  </tr>`).join('');
+}
+
+function exportExcel(){
+  if(!ledger.length){ alert('台帳にデータがありません'); return; }
+  const wb = XLSX.utils.book_new();
+
+  /* 台帳シート */
+  const h = ['会議日','学年・組','生徒名','補導内容','処分内容','経緯・補足','質問','意見'];
+  const rows = ledger.map(r => [r.date,r.grade,r.name,r.violation,r.punishment,r.summary,r.questions,r.opinions]);
+  const ws1 = XLSX.utils.aoa_to_sheet([h,...rows]);
+  ws1['!cols'] = [14,12,14,28,16,42,26,42].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, '台帳');
+
+  /* 印刷用シート（最新会議分） */
+  if(currentMeeting){
+    const pr = [
+      ['補導委員会　議事録'],
+      ['会議日', currentMeeting.meeting_date, '', '案件数', `${currentMeeting.cases.length}件`],
+      []
+    ];
+    currentMeeting.cases.forEach((c,i) => {
+      pr.push([`【案件${i+1}】`]);
+      pr.push(['学年・組', c.grade, '生徒名', c.name]);
+      pr.push(['補導内容', c.violation, '処分内容', c.punishment]);
+      pr.push(['経緯・補足', c.summary]);
+      pr.push(['質問', c.questions]);
+      pr.push(['意見', c.opinions]);
+      pr.push([]);
+    });
+    const ws2 = XLSX.utils.aoa_to_sheet(pr);
+    ws2['!cols'] = [14,38,12,32].map(w=>({wch:w}));
+    const label = currentMeeting.meeting_date.replace(/[年月日]/g,'');
+    XLSX.utils.book_append_sheet(wb, ws2, `印刷用_${label}`);
+  }
+
+  const d = new Date();
+  const fname = `補導委員会議事録_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.xlsx`;
+  XLSX.writeFile(wb, fname);
+}
+
+function clearLedger(){
+  if(!confirm('台帳データをすべて削除しますか？')) return;
+  ledger = [];
+  localStorage.removeItem('hm_ledger');
+  renderLedger();
+}
+
+function swTab(n){
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('act', ['preview','ledger'][i]===n));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('act'));
+  document.getElementById('panel-'+n).classList.add('act');
+  if(n==='ledger') renderLedger();
+}
+
+function reAnalyze(){
+  document.getElementById('resultSec').style.display = 'none';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function showErr(m){ const e=document.getElementById('errBar'); e.textContent=m; e.classList.add('show'); }
+function hideErr(){ document.getElementById('errBar').classList.remove('show'); }
+
+renderLedger();
+</script>
+</body>
+</html>
