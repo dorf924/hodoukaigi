@@ -420,9 +420,13 @@ async function analyze(){
 - 生徒名は必ずカタカナ表記（漢字があってもカタカナに変換）
 - 学年は「高Ⅰ」「高Ⅱ」「中１」「中２」などに統一
 - 「定額処分」は「停学」の誤認識→「停学○日」と正しく記載
-- 処分内容は「停学○日」「特別指導○日」「転席」「学校長譴責」など正確に日数まで記載
+- 処分内容は以下の種別から正確に選ぶこと：
+  「担任注意」「学年注意」「訓戒」「譴責」「特別指導○日」「停学○日」
+  ※「学校長譴責」「譴責」はどちらも「譴責」と統一する
+  ※「転席」という処分は存在しない。文中に出てきても処分種別として使わない
+  ※停学・特別指導は必ず日数まで記載する
 - 出席者の名前は結果に含めない
-- 会議日は文中から読み取る。なければ「不明」
+- 会議日は「令和X年X月X日」形式で記載。なければ「不明」
 - summaryは担任・顧問コメントや経緯を事実ベースで簡潔に
 
 {
@@ -432,7 +436,7 @@ async function analyze(){
       "grade": "学年・組",
       "name": "カタカナ氏名",
       "violation": "補導内容",
-      "punishment": "処分内容（例：停学7日、特別指導3日、転席、学校長譴責）",
+      "punishment": "処分内容（例：停学7日、特別指導3日、譴責、訓戒、担任注意、学年注意）",
       "summary": "経緯・補足",
       "questions": "質問内容（なければ「なし」）",
       "opinions": "意見（なければ「なし」）"
@@ -496,7 +500,8 @@ function renderPreview(d){
 
   document.getElementById('caseList').innerHTML = d.cases.map((c,i) => {
     const bc = c.punishment?.includes('停学') ? 'badge-r'
-             : c.punishment?.includes('特別指導') ? 'badge-a' : 'badge-b';
+             : c.punishment?.includes('特別指導') ? 'badge-a'
+             : c.punishment?.includes('譴責') ? 'badge-a' : 'badge-b';
     return `<div class="case-card">
       <div class="case-head">
         <div>
@@ -537,6 +542,13 @@ function addToLedger(){
   document.getElementById('okBar').textContent = `✅ 台帳に追加しました。累計 ${ledger.length}件`;
 }
 
+function parseJpDate(s){
+  if(!s||s==='不明') return 0;
+  const m = s.match(/令和(\d+)年(\d+)月(\d+)日/);
+  if(m) return (2018+parseInt(m[1]))*10000 + parseInt(m[2])*100 + parseInt(m[3]);
+  return 0;
+}
+
 function renderLedger(){
   document.getElementById('ledgerCnt').textContent = `累計 ${ledger.length}件`;
   const tb = document.getElementById('ledgerBody');
@@ -544,7 +556,8 @@ function renderLedger(){
     tb.innerHTML = '<tr><td colspan="8" class="empty">台帳にデータがありません</td></tr>';
     return;
   }
-  tb.innerHTML = ledger.map(r => `<tr>
+  const sorted = [...ledger].sort((a,b) => parseJpDate(a.date) - parseJpDate(b.date));
+  tb.innerHTML = sorted.map(r => `<tr>
     <td style="white-space:nowrap">${esc(r.date)}</td>
     <td style="white-space:nowrap">${esc(r.grade)}</td>
     <td style="white-space:nowrap;font-weight:700">${esc(r.name)}</td>
